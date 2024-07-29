@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Include PapaParse library to parse CSV files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+<body>
+  <!-- File input to upload the CSV dataset -->
+  <input type="file" id="fileInput">
+  <script>
+    // Event listener for file input change
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      // Parse the uploaded CSV file
+      Papa.parse(event.target.files[0], {
+        header: true, // Use the first row as header
+        dynamicTyping: true, // Automatically type data
+        complete: function(results) {
+          // Data from the CSV file
+          const data = results.data;
+
+          // Function to split the dataset into training and testing sets
+          function splitData(data, testSize) {
+            // Shuffle the data randomly
+            const shuffled = data.sort(() => 0.5 - Math.random());
+            // Calculate the number of test samples
+            const testCount = Math.floor(data.length * testSize);
+            // Split the data into test and train sets
+            const test = shuffled.slice(0, testCount);
+            const train = shuffled.slice(testCount);
+            return [train, test];
+          }
+
+          // Function to separate features (X) and target (Y)
+          function separateFeaturesAndTarget(data) {
+            // Extract features (all columns except the last one)
+            const features = data.map(row => Object.values(row).slice(0, -1));
+            // Extract target (the last column)
+            const targets = data.map(row => Object.values(row).slice(-1)[0]);
+            return [features, targets];
+          }
+
+          // Function to calculate Euclidean distance between two points
+          function euclideanDistance(point1, point2) {
+            return Math.sqrt(point1.reduce((sum, val, i) => sum + Math.pow(val - point2[i], 2), 0));
+          }
+
+          // KNN algorithm implementation
+          function knn(trainFeatures, trainTargets, testPoint, k) {
+            // Calculate the distance between the test point and all training points
+            const distances = trainFeatures.map((trainPoint, index) => ({
+              distance: euclideanDistance(testPoint, trainPoint),
+              label: trainTargets[index]
+            }));
+            // Sort the distances in ascending order
+            distances.sort((a, b) => a.distance - b.distance);
+            // Get the k nearest neighbors
+            const neighbors = distances.slice(0, k);
+            // Count the occurrences of each label among the neighbors
+            const counts = neighbors.reduce((acc, neighbor) => {
+              acc[neighbor.label] = (acc[neighbor.label] || 0) + 1;
+              return acc;
+            }, {});
+            // Return the label with the highest count
+            return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+          }
+
+          // Split the dataset into training and testing sets (70-30 split)
+          const [trainData, testData] = splitData(data, 0.3);
+          // Separate features (X) and target (Y) for training and testing sets
+          const [trainFeatures, trainTargets] = separateFeaturesAndTarget(trainData);
+          const [testFeatures, testTargets] = separateFeaturesAndTarget(testData);
+
+          // Set the number of neighbors (k) for KNN
+          const k = 3; // You can adjust this value
+          // Make predictions on the test set using the KNN algorithm
+          const predictions = testFeatures.map(testPoint => knn(trainFeatures, trainTargets, testPoint, k));
+          // Output the predictions to the console
+          console.log(predictions);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
